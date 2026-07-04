@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OB-GYN Clinical Calculators</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#faf8f4;color:#1a1a1a;max-width:600px;margin:0 auto;padding-bottom:32px}
+.hub{padding:16px}
+.hub h1{font-size:22px;font-weight:700;margin-bottom:4px}
+.hub p{font-size:13px;color:#666;margin-bottom:14px}
+.card{padding:13px 14px;background:#fff;border-radius:10px;border-left:4px solid #888;margin-bottom:9px;cursor:pointer;border-top:1px solid #eee;border-right:1px solid #eee;border-bottom:1px solid #eee;display:flex;gap:10px;align-items:flex-start}
+.card:hover{background:#f7f7f5}
+.card-text .title{font-size:14px;font-weight:700;color:#1a1a1a}
+.card-text .sub{font-size:12px;color:#777;margin-top:2px}
+.pg{padding:16px}
+.back{background:#fff;border:1px solid #ddd;border-radius:8px;padding:5px 14px;font-size:13px;cursor:pointer;margin-bottom:12px;color:#555;display:inline-block}
+.back:hover{background:#f5f5f5}
+.pg h1{font-size:20px;font-weight:700;margin-bottom:2px}
+.pg .sub{font-size:12px;color:#888;margin-bottom:14px}
+.sec{background:#fff;border-radius:10px;border:1px solid #eee;padding:14px;margin-bottom:12px}
+.sec-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#999;margin-bottom:10px}
+.field{margin-bottom:12px}
+.field label{font-size:12px;color:#666;display:block;margin-bottom:4px}
+input[type=number],select{width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:15px;background:#faf8f4;color:#1a1a1a;outline:none}
+input:focus,select:focus{border-color:#555}
+.result{padding:13px;border-radius:10px;margin-top:10px}
+.result .score{font-size:24px;font-weight:800;margin-bottom:3px}
+.result .label{font-size:14px;font-weight:700;margin-bottom:4px}
+.result .action{font-size:12.5px;line-height:1.6;color:#333}
+.chk-row{display:flex;align-items:flex-start;gap:9px;padding:8px 0;border-bottom:1px solid #f0f0f0;cursor:pointer}
+.chk-row input{margin-top:2px;width:17px;height:17px;flex-shrink:0;cursor:pointer}
+.chk-row .cl{font-size:13px;line-height:1.5;flex:1}
+.chk-row .cp{font-size:13px;font-weight:700;flex-shrink:0;min-width:28px;text-align:right}
+.moews-grid{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.pbtn{padding:6px 10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border-width:2px;border-style:solid;background:#fff;transition:all .12s}
+.warn{background:#fff8e1;border-left:3px solid #f59e0b;padding:10px 12px;border-radius:0 8px 8px 0;font-size:12.5px;line-height:1.6;margin-bottom:10px}
+.disc{font-size:11px;color:#aaa;text-align:center;margin-top:8px;padding:0 16px}
+.stitle{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:10px 0 6px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+var ST={page:'hub',moews:{}};
+var C=[
+  {id:'si',   t:'Shock Index',           s:'HR \u00f7 SBP \u00b7 threshold \u2265 0.9',         c:'#c0392b'},
+  {id:'msi',  t:'Modified Shock Index',  s:'HR \u00f7 MAP \u00b7 threshold \u2265 1.4',         c:'#c0392b'},
+  {id:'moews',t:'MOEWS',                 s:'Obstetric Early Warning Score',                      c:'#d97706'},
+  {id:'vte',  t:'VTE Risk Score',        s:'RCOG Green-top 37a \u00b7 antenatal & postnatal',   c:'#2e7d32'},
+  {id:'gcs',  t:'Glasgow Coma Scale',    s:'Eye + Verbal + Motor \u00b7 /15',                   c:'#c0392b'},
+  {id:'qsofa',t:'qSOFA Score',           s:'Sepsis screening \u00b7 /3',                        c:'#c0392b'},
+  {id:'puqe', t:'PUQE Score',            s:'Hyperemesis severity \u00b7 /15',                   c:'#d97706'},
+  {id:'bishop',t:'Bishop Score',         s:'Cervical readiness for IOL \u00b7 /13',             c:'#1565c0'},
+  {id:'apgar',t:'APGAR Score',           s:'Neonatal assessment \u00b7 /10',                    c:'#1565c0'},
+  {id:'epds', t:'EPDS',                  s:'Postnatal Depression Scale \u00b7 /30',             c:'#4a6fa5'},
+  {id:'wells',t:'Wells Score',           s:'DVT / PE pre-test probability',                     c:'#2e7d32'},
+  {id:'alv',  t:'Alvarado Score',        s:'Appendicitis in pregnancy \u00b7 /10',              c:'#d97706'},
+  {id:'sga',  t:'SGA / FGR Risk',        s:'RCOG Green-top 31 \u00b7 booking risk',             c:'#2e7d32'},
+];
+function RB(score,label,action,bg,col){
+  return '<div class="result" style="background:'+bg+'">'+
+    '<div class="score" style="color:'+col+'">'+score+'</div>'+
+    '<div class="label" style="color:'+col+'">'+label+'</div>'+
+    '<div class="action">'+action+'</div></div>';
+}
+function SL(id,opts){
+  return '<select id="'+id+'"><option value="">-- select --</option>'+
+    opts.map(function(o){return'<option value="'+o.v+'">'+o.l+'</option>';}).join('')+'</select>';
+}
+function CH(id,cls,lbl,pts,pc){
+  return '<label class="chk-row"><input type="checkbox" id="'+id+'" class="'+cls+'" data-pts="'+pts+'">'+
+    '<span class="cl">'+lbl+'</span><span class="cp" style="color:'+pc+'">'+pts+'</span></label>';
+}
+var PAGES={
+  si:function(){
+    return '<div class="field"><label>Heart Rate (bpm)</label><input type="number" id="si-hr" placeholder="e.g. 110"></div>'+
+      '<div class="field"><label>Systolic BP (mmHg)</label><input type="number" id="si-sbp" placeholder="e.g. 90"></div>'+
+      '<div id="si-r"></div>';
+  },
+  msi:function(){
+    return '<div class="field"><label>Heart Rate (bpm)</label><input type="number" id="msi-hr" placeholder="110"></div>'+
+      '<div class="field"><label>Systolic BP (mmHg)</label><input type="number" id="msi-sbp" placeholder="100"></div>'+
+      '<div class="field"><label>Diastolic BP (mmHg)</label><input type="number" id="msi-dbp" placeholder="60"></div>'+
+      '<div id="msi-map" style="font-size:12px;color:#888;margin-bottom:6px;"></div><div id="msi-r"></div>';
+  },
+  gcs:function(){
+    return '<div class="field"><label>Eye Opening (E)</label>'+SL('gcs-e',[{v:4,l:'4 \u2014 Spontaneous'},{v:3,l:'3 \u2014 To speech'},{v:2,l:'2 \u2014 To pain'},{v:1,l:'1 \u2014 None'}])+'</div>'+
+      '<div class="field"><label>Verbal Response (V)</label>'+SL('gcs-v',[{v:5,l:'5 \u2014 Orientated'},{v:4,l:'4 \u2014 Confused'},{v:3,l:'3 \u2014 Words only'},{v:2,l:'2 \u2014 Sounds only'},{v:1,l:'1 \u2014 None'}])+'</div>'+
+      '<div class="field"><label>Motor Response (M)</label>'+SL('gcs-m',[{v:6,l:'6 \u2014 Obeys commands'},{v:5,l:'5 \u2014 Localises pain'},{v:4,l:'4 \u2014 Withdraws'},{v:3,l:'3 \u2014 Abnormal flexion'},{v:2,l:'2 \u2014 Extension'},{v:1,l:'1 \u2014 None'}])+'</div>'+
+      '<div id="gcs-r"></div>';
+  },
+  qsofa:function(){
+    return CH('qs1','qs','Respiratory rate \u2265 22 breaths/min','+1','#c0392b')+
+      CH('qs2','qs','Altered mental status (new confusion / GCS < 15)','+1','#c0392b')+
+      CH('qs3','qs','Systolic BP \u2264 100 mmHg','+1','#c0392b')+
+      '<div id="qs-r" style="margin-top:10px;"></div>';
+  },
+  puqe:function(){
+    return '<div class="field"><label>How long nauseated (last 24h)?</label>'+SL('pq-n',[{v:1,l:'1 \u2014 Not at all'},{v:2,l:'2 \u2014 \u22641 hour'},{v:3,l:'3 \u2014 2\u20133 hours'},{v:4,l:'4 \u2014 4\u20136 hours'},{v:5,l:'5 \u2014 >6 hours'}])+'</div>'+
+      '<div class="field"><label>Times vomited?</label>'+SL('pq-v',[{v:1,l:'1 \u2014 0'},{v:2,l:'2 \u2014 1\u20132'},{v:3,l:'3 \u2014 3\u20134'},{v:4,l:'4 \u2014 5\u20136'},{v:5,l:'5 \u2014 \u22677'}])+'</div>'+
+      '<div class="field"><label>Episodes of retching?</label>'+SL('pq-r',[{v:1,l:'1 \u2014 0'},{v:2,l:'2 \u2014 1\u20132'},{v:3,l:'3 \u2014 3\u20134'},{v:4,l:'4 \u2014 5\u20136'},{v:5,l:'5 \u2014 \u22677'}])+'</div>'+
+      '<div id="pq-r"></div>';
+  },
+  bishop:function(){
+    return '<div class="field"><label>Dilation</label>'+SL('bp-d',[{v:0,l:'0 \u2014 Closed'},{v:1,l:'1 \u2014 1\u20132 cm'},{v:2,l:'2 \u2014 3\u20134 cm'},{v:3,l:'3 \u2014 \u22655 cm'}])+'</div>'+
+      '<div class="field"><label>Effacement</label>'+SL('bp-e',[{v:0,l:'0 \u2014 0\u201330%'},{v:1,l:'1 \u2014 40\u201350%'},{v:2,l:'2 \u2014 60\u201370%'},{v:3,l:'3 \u2014 \u226580%'}])+'</div>'+
+      '<div class="field"><label>Fetal Station</label>'+SL('bp-s',[{v:0,l:'0 \u2014 \u22123'},{v:1,l:'1 \u2014 \u22122'},{v:2,l:'2 \u2014 \u22121/0'},{v:3,l:'3 \u2014 +1/+2'}])+'</div>'+
+      '<div class="field"><label>Consistency</label>'+SL('bp-c',[{v:0,l:'0 \u2014 Firm'},{v:1,l:'1 \u2014 Medium'},{v:2,l:'2 \u2014 Soft'}])+'</div>'+
+      '<div class="field"><label>Position</label>'+SL('bp-p',[{v:0,l:'0 \u2014 Posterior'},{v:1,l:'1 \u2014 Mid'},{v:2,l:'2 \u2014 Anterior'}])+'</div>'+
+      '<div id="bp-r"></div>';
+  },
+  apgar:function(){
+    return '<div class="field"><label>Appearance</label>'+SL('ap-a',[{v:0,l:'0 \u2014 Blue/pale all over'},{v:1,l:'1 \u2014 Body pink, extremities blue'},{v:2,l:'2 \u2014 Completely pink'}])+'</div>'+
+      '<div class="field"><label>Pulse</label>'+SL('ap-p',[{v:0,l:'0 \u2014 Absent'},{v:1,l:'1 \u2014 <100 bpm'},{v:2,l:'2 \u2014 \u2265100 bpm'}])+'</div>'+
+      '<div class="field"><label>Grimace</label>'+SL('ap-g',[{v:0,l:'0 \u2014 No response'},{v:1,l:'1 \u2014 Grimace/weak cry'},{v:2,l:'2 \u2014 Cry/cough/sneeze'}])+'</div>'+
+      '<div class="field"><label>Activity/Tone</label>'+SL('ap-t',[{v:0,l:'0 \u2014 Limp'},{v:1,l:'1 \u2014 Some flexion'},{v:2,l:'2 \u2014 Active flexion'}])+'</div>'+
+      '<div class="field"><label>Respiration</label>'+SL('ap-r',[{v:0,l:'0 \u2014 Absent'},{v:1,l:'1 \u2014 Slow/irregular'},{v:2,l:'2 \u2014 Good cry'}])+'</div>'+
+      '<div id="ap-r"></div>';
+  },
+  moews:function(){
+    var P=[
+      {id:'mr',l:'Respiratory Rate (breaths/min)',cols:[{r:'\u22649',s:3,c:'#b71c1c'},{r:'10\u201311',s:2,c:'#e65100'},{r:'12\u201314',s:1,c:'#f57f17'},{r:'15\u201320',s:0,c:'#2e7d32'},{r:'21\u201325',s:1,c:'#f57f17'},{r:'26\u201329',s:2,c:'#e65100'},{r:'\u226530',s:3,c:'#b71c1c'}]},
+      {id:'ms',l:'SpO\u2082 (%)',cols:[{r:'\u226485',s:3,c:'#b71c1c'},{r:'86\u201390',s:2,c:'#e65100'},{r:'91\u201393',s:1,c:'#f57f17'},{r:'\u226594',s:0,c:'#2e7d32'}]},
+      {id:'mb',l:'Systolic BP (mmHg)',cols:[{r:'\u226470',s:3,c:'#b71c1c'},{r:'71\u201380',s:2,c:'#e65100'},{r:'81\u201389',s:1,c:'#f57f17'},{r:'90\u2013139',s:0,c:'#2e7d32'},{r:'140\u2013149',s:1,c:'#f57f17'},{r:'150\u2013159',s:2,c:'#e65100'},{r:'\u2265160',s:3,c:'#b71c1c'}]},
+      {id:'mh',l:'Heart Rate (bpm)',cols:[{r:'\u226439',s:3,c:'#b71c1c'},{r:'40\u201350',s:2,c:'#e65100'},{r:'51\u201360',s:1,c:'#f57f17'},{r:'61\u2013100',s:0,c:'#2e7d32'},{r:'101\u2013110',s:1,c:'#f57f17'},{r:'111\u2013129',s:2,c:'#e65100'},{r:'\u2265130',s:3,c:'#b71c1c'}]},
+      {id:'mt',l:'Temperature (\u00b0C)',cols:[{r:'\u226435.0',s:3,c:'#b71c1c'},{r:'35.1\u201336.0',s:2,c:'#e65100'},{r:'36.1\u201337.9',s:0,c:'#2e7d32'},{r:'38.0\u201338.9',s:2,c:'#e65100'},{r:'\u226539.0',s:3,c:'#b71c1c'}]},
+      {id:'mv',l:'Neurological (AVPU)',cols:[{r:'U',s:3,c:'#b71c1c'},{r:'P',s:2,c:'#e65100'},{r:'V',s:1,c:'#f57f17'},{r:'A',s:0,c:'#2e7d32'}]},
+      {id:'mu',l:'Urine output (mL/hr)',cols:[{r:'<10',s:3,c:'#b71c1c'},{r:'10\u201319',s:2,c:'#e65100'},{r:'20\u201329',s:1,c:'#f57f17'},{r:'\u226530',s:0,c:'#2e7d32'}]},
+    ];
+    return P.map(function(p){
+      return '<div style="padding:10px 0;border-bottom:1px solid #f0f0f0;">'+
+        '<div style="font-size:13px;font-weight:600;margin-bottom:7px;">'+p.l+'</div>'+
+        '<div class="moews-grid">'+p.cols.map(function(c){
+          return '<button class="pbtn moews-btn" data-pid="'+p.id+'" data-score="'+c.s+'" data-col="'+c.c+'" '+
+            'style="border-color:'+c.c+';color:'+c.c+'">'+c.r+'<br><span style="font-size:10px;opacity:.75">'+c.s+'</span></button>';
+        }).join('')+'</div></div>';
+    }).join('')+'<div id="mo-r" style="margin-top:12px;"></div>';
+  },
+  vte:function(){
+    var A=[
+      {id:'va1',l:'Previous VTE (not single provoked by surgery)',p:4},
+      {id:'va2',l:'Previous VTE \u2014 single provoked by surgery',p:3},
+      {id:'va3',l:'High-risk thrombophilia (antithrombin def, compound/homozygous FVL or PT G20210A)',p:3},
+      {id:'va4',l:'Lower-risk thrombophilia (heterozygous FVL, PT G20210A, protein C/S def)',p:1},
+      {id:'va5',l:'Family history VTE 1st-degree (unprovoked or oestrogen-provoked)',p:1},
+      {id:'va6',l:'IVF / ART pregnancy',p:1},{id:'va7',l:'Parity \u2265 3',p:1},
+      {id:'va8',l:'Current smoker',p:1},{id:'va9',l:'Gross varicose veins (symptomatic, above knee)',p:1},
+      {id:'va10',l:'Significant immobility / long-haul travel >4 hr',p:1},
+      {id:'va11',l:'Systemic infection requiring hospital admission',p:1},
+      {id:'va12',l:'BMI \u2265 30 kg/m\u00b2',p:1},{id:'va13',l:'BMI \u2265 40 kg/m\u00b2 (add to above)',p:1},
+      {id:'va14',l:'Multiple pregnancy',p:1},{id:'va15',l:'IVF/ART with OHSS (1st trimester only)',p:4},
+      {id:'va16',l:'Antepartum haemorrhage / placenta praevia',p:1},
+      {id:'va17',l:'Pre-eclampsia in current pregnancy',p:1},
+      {id:'va18',l:'Severe dehydration / hyperemesis gravidarum',p:1},
+    ];
+    var PN=[
+      {id:'vp1',l:'Emergency Caesarean section',p:4},{id:'vp2',l:'Elective Caesarean section',p:2},
+      {id:'vp3',l:'Mid-cavity or rotational instrumental delivery',p:1},
+      {id:'vp4',l:'Prolonged labour (>24 hours)',p:1},{id:'vp5',l:'PPH >1 L or blood transfusion',p:1},
+      {id:'vp6',l:'Preterm birth (<37 weeks)',p:1},{id:'vp7',l:'Stillbirth in this pregnancy',p:1},
+      {id:'vp8',l:'Systemic infection requiring IV antibiotics',p:1},
+      {id:'vp9',l:'Immobility \u22653 days bed rest / long-haul travel',p:1},
+    ];
+    var h='<div class="stitle" style="color:#c0392b;">Antenatal risk factors</div>';
+    A.forEach(function(f){h+=CH(f.id,'vtc',f.l,'+'+f.p,'#c0392b');});
+    h+='<div class="stitle" style="color:#c0392b;margin-top:14px;">Postnatal risk factors</div>';
+    PN.forEach(function(f){h+=CH(f.id,'vtc',f.l,'+'+f.p,'#c0392b');});
+    return h+'<div id="vt-r" style="margin-top:10px;"></div>';
+  },
+  wells:function(){
+    var W=[
+      {id:'wl1',l:'Active cancer (treatment within 6 months, or palliative)',s:1},
+      {id:'wl2',l:'Paralysis, paresis, or plaster immobilisation of leg',s:1},
+      {id:'wl3',l:'Recently bedridden >3 days or surgery within 12 weeks',s:1},
+      {id:'wl4',l:'Localised tenderness along deep vein system',s:1},
+      {id:'wl5',l:'Entire leg swollen',s:1},
+      {id:'wl6',l:'Calf swelling >3 cm compared to asymptomatic leg',s:1},
+      {id:'wl7',l:'Pitting oedema confined to symptomatic leg',s:1},
+      {id:'wl8',l:'Collateral superficial veins (non-varicose)',s:1},
+      {id:'wl9',l:'Previously documented DVT',s:1},
+      {id:'wl10',l:'Alternative diagnosis at least as likely as DVT',s:-2},
+    ];
+    return W.map(function(f){return CH(f.id,'wlc',f.l,(f.s>0?'+':'')+f.s,f.s<0?'#2e7d32':'#c0392b');}).join('')+
+      '<div id="wl-r" style="margin-top:10px;"></div>';
+  },
+  alv:function(){
+    var A=[
+      {id:'al1',l:'Migration of pain to RIF (periumbilical \u2192 right iliac fossa)',p:1},
+      {id:'al2',l:'Anorexia / loss of appetite',p:1},
+      {id:'al3',l:'Nausea or vomiting',p:1},
+      {id:'al4',l:'Tenderness in right iliac fossa',p:2},
+      {id:'al5',l:'Rebound tenderness in RIF',p:1},
+      {id:'al6',l:'Elevated temperature (>37.3\u00b0C)',p:1},
+      {id:'al7',l:'Leukocytosis (WBC >10 \u00d7 10\u2079/L)',p:2},
+      {id:'al8',l:'Left shift (neutrophilia >75%)',p:1},
+    ];
+    return '<div class="warn">\u26a0 Appendix migrates superiorly after 20 weeks. Tenderness may be in right flank, not classic RIF. MRI preferred over CT in pregnancy.</div>'+
+      A.map(function(f){return CH(f.id,'alc',f.l,'+'+f.p,'#c0392b');}).join('')+
+      '<div id="al-r" style="margin-top:10px;"></div>';
+  },
+  sga:function(){
+    var M=[
+      {id:'sm1',l:'Previous SGA (birthweight <10th centile on customised chart)'},
+      {id:'sm2',l:'Previous unexplained stillbirth or placental abruption'},
+      {id:'sm3',l:'Placenta praevia in current pregnancy'},
+      {id:'sm4',l:'Cocaine or other illicit drug use in pregnancy'},
+      {id:'sm5',l:'Heavy smoker (\u226511 cigarettes/day)'},
+      {id:'sm6',l:'Chronic hypertension on antihypertensive medication'},
+      {id:'sm7',l:'Diabetes mellitus (Type 1 or 2) with vascular disease'},
+      {id:'sm8',l:'Renal impairment (eGFR <60 mL/min or proteinuria)'},
+      {id:'sm9',l:'Antiphospholipid syndrome'},
+      {id:'sm10',l:'IVF with donor egg'},
+    ];
+    var MN=[
+      {id:'sn1',l:'Age \u2265 35 years'},{id:'sn2',l:'Nulliparity'},
+      {id:'sn3',l:'BMI <20 kg/m\u00b2 at booking'},{id:'sn4',l:'BMI \u226535 kg/m\u00b2 at booking'},
+      {id:'sn5',l:'Previous pre-eclampsia'},{id:'sn6',l:'Inter-pregnancy interval >10 years'},
+      {id:'sn7',l:'Light smoker (1\u201310 cigarettes/day)'},
+      {id:'sn8',l:'Low PAPP-A (<0.4 MoM on 1st trimester screen)'},
+      {id:'sn9',l:'Raised uterine artery Dopplers at 20\u201324 weeks (bilateral notching or mean PI >95th centile)'},
+    ];
+    var h='<div class="stitle" style="color:#c0392b;">Major risk factors</div>';
+    M.forEach(function(f){h+=CH(f.id,'sgm',f.l,'MAJOR','#c0392b');});
+    h+='<div class="stitle" style="color:#d97706;margin-top:14px;">Minor risk factors</div>';
+    MN.forEach(function(f){h+=CH(f.id,'sgn',f.l,'minor','#d97706');});
+    return h+'<div id="sg-r" style="margin-top:10px;"></div>';
+  },
+  epds:function(){
+    var Q=[
+      {id:'eq1',q:'I have been able to laugh and see the funny side of things',o:[{v:0,l:'As much as I always could'},{v:1,l:'Not quite so much now'},{v:2,l:'Definitely not so much now'},{v:3,l:'Not at all'}]},
+      {id:'eq2',q:'I have looked forward with enjoyment to things',o:[{v:0,l:'As much as ever'},{v:1,l:'Rather less than I used to'},{v:2,l:'Definitely less than I used to'},{v:3,l:'Hardly at all'}]},
+      {id:'eq3',q:'I have blamed myself unnecessarily when things went wrong',o:[{v:3,l:'Yes, most of the time'},{v:2,l:'Yes, some of the time'},{v:1,l:'Not very often'},{v:0,l:'No, never'}]},
+      {id:'eq4',q:'I have been anxious or worried for no good reason',o:[{v:0,l:'No, not at all'},{v:1,l:'Hardly ever'},{v:2,l:'Yes, sometimes'},{v:3,l:'Yes, very often'}]},
+      {id:'eq5',q:'I have felt scared or panicky for no very good reason',o:[{v:3,l:'Yes, quite a lot'},{v:2,l:'Yes, sometimes'},{v:1,l:'No, not much'},{v:0,l:'No, not at all'}]},
+      {id:'eq6',q:'Things have been getting on top of me',o:[{v:3,l:"Yes, most of the time I haven't been coping"},{v:2,l:'Yes, sometimes'},{v:1,l:'No, most of the time I have coped'},{v:0,l:'No, I have been coping as well as ever'}]},
+      {id:'eq7',q:'I have been so unhappy that I have had difficulty sleeping',o:[{v:3,l:'Yes, most of the time'},{v:2,l:'Yes, sometimes'},{v:1,l:'Not very often'},{v:0,l:'No, not at all'}]},
+      {id:'eq8',q:'I have felt sad or miserable',o:[{v:3,l:'Yes, most of the time'},{v:2,l:'Yes, quite often'},{v:1,l:'Not very often'},{v:0,l:'No, not at all'}]},
+      {id:'eq9',q:'I have been so unhappy that I have been crying',o:[{v:3,l:'Yes, most of the time'},{v:2,l:'Yes, quite often'},{v:1,l:'Only occasionally'},{v:0,l:'No, never'}]},
+      {id:'eq10',q:'\u26a0 The thought of harming myself has occurred to me',o:[{v:3,l:'Yes, quite often'},{v:2,l:'Sometimes'},{v:1,l:'Hardly ever'},{v:0,l:'Never'}]},
+    ];
+    return '<div class="warn">\u26a0 Q10 self-harm: any positive response requires immediate safe assessment regardless of total score.</div>'+
+      Q.map(function(q,i){
+        return '<div style="padding:8px 0;border-bottom:1px solid #f0f0f0;">'+
+          '<div style="font-size:13px;font-weight:600;margin-bottom:5px;">'+(i+1)+'. '+q.q+'</div>'+
+          '<select id="'+q.id+'" style="width:100%;padding:8px 10px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;background:#faf8f4;"><option value="">-- select --</option>'+
+          q.o.map(function(o){return'<option value="'+o.v+'">'+o.l+'</option>';}).join('')+'</select></div>';
+      }).join('')+'<div id="ep-r" style="margin-top:10px;"></div>';
+  }
+};
+
+function attachEvents(){
+  var d=document;
+  function g(id){var e=d.getElementById(id);return e?+e.value:0;}
+  function set(id,h){var e=d.getElementById(id);if(e)e.innerHTML=h;}
+  function on(id,ev,fn){var e=d.getElementById(id);if(e)e.addEventListener(ev,fn);}
+  function onC(cls,ev,fn){d.querySelectorAll('.'+cls).forEach(function(e){e.addEventListener(ev,fn);});}
+
+  function siCalc(){
+    var hr=g('si-hr'),sbp=g('si-sbp');if(!hr||!sbp){set('si-r','');return;}
+    var si=(hr/sbp).toFixed(2);
+    var x=si<0.9?['#e8f5e9','#2e7d32','Normal','Routine monitoring']:si<1.0?['#fff8e1','#f57f17','Mildly elevated','Increase monitoring frequency; assess for bleeding']:si<1.4?['#fff3e0','#e65100','Moderate shock','Senior review \u00b7 IV access \u00b7 bloods \u00b7 consider transfusion']:['#ffebee','#b71c1c','Severe haemorrhagic shock','Immediate MET/senior call \u00b7 Massive haemorrhage protocol'];
+    set('si-r',RB('SI = '+si,x[2],x[3],x[0],x[1]));}
+  on('si-hr','input',siCalc);on('si-sbp','input',siCalc);
+
+  function msiCalc(){
+    var hr=g('msi-hr'),sbp=g('msi-sbp'),dbp=g('msi-dbp');if(!hr||!sbp||!dbp){set('msi-r','');return;}
+    var map=dbp+(sbp-dbp)/3,msi=(hr/map).toFixed(2);
+    set('msi-map','MAP = '+map.toFixed(1)+' mmHg');
+    var x=msi<1.4?['#e8f5e9','#2e7d32','Haemodynamically stable','Routine monitoring']:msi<1.7?['#fff8e1','#f57f17','Moderate compromise','Senior obstetrician review \u00b7 IV access \u00b7 bloods']:['#ffebee','#b71c1c','Severe compromise','Immediate MET \u00b7 Major haemorrhage protocol'];
+    set('msi-r',RB('MSI = '+msi,x[2],x[3],x[0],x[1]));}
+  ['msi-hr','msi-sbp','msi-dbp'].forEach(function(id){on(id,'input',msiCalc);});
+
+  function gcsCalc(){
+    var e=g('gcs-e'),v=g('gcs-v'),m=g('gcs-m');if(!e||!v||!m){set('gcs-r','');return;}
+    var tot=e+v+m;
+    var x=tot>=13?['#e8f5e9','#2e7d32','Mild / minimal impairment','Monitor closely; reassess frequently']:tot>=9?['#fff8e1','#f57f17','Moderate impairment','Senior review \u00b7 Consider CT head \u00b7 Anaesthetic involvement']:['#ffebee','#b71c1c','Severe \u2014 airway at risk','Immediate senior/anaesthetic/ICU \u00b7 Intubate if GCS \u2264 8'];
+    set('gcs-r',RB('GCS = '+tot+'/15 (E'+e+'V'+v+'M'+m+')',x[2],x[3],x[0],x[1]));}
+  ['gcs-e','gcs-v','gcs-m'].forEach(function(id){on(id,'change',gcsCalc);});
+
+  onC('qs','change',function(){
+    var s=d.querySelectorAll('.qs:checked').length;
+    var x=s===0?['#e8f5e9','#2e7d32','Low risk','Routine care; monitor for deterioration']:s===1?['#fff8e1','#f57f17','Increased risk','Senior review; assess infection source; escalate monitoring']:['#ffebee','#b71c1c','High risk \u2014 suspect sepsis','Sepsis Six immediately \u00b7 Blood cultures \u00b7 IV antibiotics within 1 hour'];
+    set('qs-r',RB('qSOFA = '+s+'/3',x[2],x[3],x[0],x[1]));});
+
+  function puqeCalc(){
+    var n=g('pq-n'),v=g('pq-v'),r=g('pq-r');if(!n&&!v&&!r){set('pq-r','');return;}
+    var tot=n+v+r;
+    var x=tot<=6?['#e8f5e9','#2e7d32','Mild NVP','Dietary advice \u00b7 Small frequent meals \u00b7 Outpatient management']:tot<=12?['#fff8e1','#f57f17','Moderate NVP','Antiemetics (cyclizine, prochlorperazine) \u00b7 Consider ambulatory care']:['#ffebee','#b71c1c','Severe NVP / Hyperemesis Gravidarum','Admit \u00b7 IV rehydration \u00b7 IV antiemetics \u00b7 Thiamine before glucose \u00b7 Check U&E and LFTs'];
+    set('pq-r',RB('PUQE = '+tot+'/15',x[2],x[3],x[0],x[1]));}
+  ['pq-n','pq-v','pq-r'].forEach(function(id){on(id,'change',puqeCalc);});
+
+  function bpCalc(){
+    var ids=['bp-d','bp-e','bp-s','bp-c','bp-p'],tot=0,ok=true;
+    ids.forEach(function(id){var v=d.getElementById(id).value;if(v==='')ok=false;else tot+=+v;});
+    if(!ok){set('bp-r','');return;}
+    var x=tot>=8?['#e8f5e9','#2e7d32','Favourable \u2014 proceed with ARM \u00b1 oxytocin','High chance of successful IOL']:tot>=6?['#fff8e1','#f57f17','Intermediate','Consider membrane sweep \u00b7 PGE2 if not fully favourable']:['#ffebee','#b71c1c','Unfavourable \u2014 cervical ripening required','PGE2 gel/pessary or mechanical balloon (Foley) before oxytocin'];
+    set('bp-r',RB('Bishop = '+tot+'/13',x[2],x[3],x[0],x[1]));}
+  ['bp-d','bp-e','bp-s','bp-c','bp-p'].forEach(function(id){on(id,'change',bpCalc);});
+
+  function apCalc(){
+    var ids=['ap-a','ap-p','ap-g','ap-t','ap-r'],tot=0,ok=true;
+    ids.forEach(function(id){var v=d.getElementById(id).value;if(v==='')ok=false;else tot+=+v;});
+    if(!ok){set('ap-r','');return;}
+    var x=tot>=7?['#e8f5e9','#2e7d32','Normal','Routine newborn care']:tot>=4?['#fff8e1','#f57f17','Moderate concern','Stimulate \u00b7 Supplemental O\u2082 \u00b7 Reassess at 5 min']:['#ffebee','#b71c1c','Severely depressed','Immediate resuscitation \u00b7 PPV \u00b7 Neonatal team'];
+    set('ap-r',RB('APGAR = '+tot+'/10',x[2],x[3],x[0],x[1]));}
+  ['ap-a','ap-p','ap-g','ap-t','ap-r'].forEach(function(id){on(id,'change',apCalc);});
+
+  onC('moews-btn','click',function(){
+    var pid=this.dataset.pid,sc=+this.dataset.score,col=this.dataset.col;
+    ST.moews[pid]=sc;
+    d.querySelectorAll('[data-pid="'+pid+'"]').forEach(function(b){
+      var sel=+b.dataset.score===sc;
+      b.style.background=sel?b.dataset.col:'#fff';
+      b.style.color=sel?'white':b.dataset.col;
+    });
+    var tot=Object.values(ST.moews).reduce(function(a,b){return a+b;},0);
+    var red=Object.values(ST.moews).some(function(v){return v===3;});
+    var x=tot<=1&&!red?['#e8f5e9','#2e7d32','Low concern','Routine monitoring per local protocol']:tot===2&&!red?['#fff8e1','#f57f17','Borderline','Increase monitoring frequency \u00b7 Inform midwife in charge']:tot<=4&&!red?['#fff3e0','#e65100','Moderate concern','Senior midwife + junior doctor review within 30 minutes']:['#ffebee','#b71c1c','High concern'+(red?' (red parameter)':''),'Immediate senior obstetrician + anaesthetist \u00b7 Consider ICU'];
+    set('mo-r',RB('Total = '+tot+(red?' \u26a0':''),x[2],x[3],x[0],x[1]));});
+
+  onC('vtc','change',function(){
+    var s=0;d.querySelectorAll('.vtc:checked').forEach(function(cb){s+=+cb.dataset.pts;});
+    if(!s){set('vt-r','');return;}
+    var x=s<3?['#e8f5e9','#2e7d32','Low risk','Mobilisation \u00b7 hydration \u00b7 TED stockings if any minor risk factor']:s===3?['#fff8e1','#f57f17','Intermediate risk','Antenatal: LMWH from 28 weeks \u00b7 Postnatal: LMWH for 10 days']:['#ffebee','#b71c1c','High risk','Antenatal: LMWH from 1st trimester \u00b7 Postnatal: LMWH for 6 weeks (if \u22654 or CS)'];
+    set('vt-r',RB('Score = '+s,x[2],x[3],x[0],x[1]));});
+
+  onC('wlc','change',function(){
+    var s=0;d.querySelectorAll('.wlc:checked').forEach(function(cb){s+=+cb.dataset.pts;});
+    var x=s<=1?['#e8f5e9','#2e7d32','Low probability','D-dimer \u00b7 In pregnancy prefer USS over D-dimer-based pathway']:s<=4?['#fff8e1','#f57f17','Moderate probability','Compression USS \u00b7 Interim LMWH whilst awaiting imaging']:['#ffebee','#b71c1c','High probability','Imaging immediately (USS/CTPA/V-Q) \u00b7 Start therapeutic LMWH now'];
+    set('wl-r',RB('Wells = '+s,x[2],x[3],x[0],x[1]));});
+
+  onC('alc','change',function(){
+    var s=0;d.querySelectorAll('.alc:checked').forEach(function(cb){s+=+cb.dataset.pts;});
+    if(!s){set('al-r','');return;}
+    var x=s<=4?['#e8f5e9','#2e7d32','Low probability','Discharge with safety-netting \u00b7 Return if symptoms worsen']:s<=6?['#fff8e1','#f57f17','Moderate probability','Observe \u00b7 Surgical + obstetric review \u00b7 USS/MRI']:s<=8?['#fff3e0','#e65100','High probability','Urgent surgical review \u00b7 MRI preferred \u00b7 Consider laparoscopy']:['#ffebee','#b71c1c','Very high probability','Immediate surgical consultation \u00b7 Theatre preparation'];
+    set('al-r',RB('Alvarado = '+s+'/10',x[2],x[3],x[0],x[1]));});
+
+  function sgaCalc(){
+    var maj=d.querySelectorAll('.sgm:checked').length,min=d.querySelectorAll('.sgn:checked').length;
+    if(!maj&&!min){set('sg-r','');return;}
+    var x=maj>=1?['#ffebee','#b71c1c','HIGH RISK','Serial USS growth + Dopplers from 26\u201328 weeks \u00b7 Aspirin \u226416 weeks \u00b7 Fetal medicine referral']:min>=3?['#fff3e0','#e65100','HIGH RISK (\u22653 minor factors)','Serial USS from 26\u201328 weeks \u00b7 Uterine artery Dopplers at 20\u201324 weeks \u00b7 Aspirin \u226416 weeks']:min>=1?['#fff8e1','#f57f17','Moderate risk','Growth scan at 36 weeks minimum \u00b7 Consider additional scans if new concerns']:['#e8f5e9','#2e7d32','Low risk','SFH at every contact \u00b7 Refer if SFH <10th centile on customised chart'];
+    set('sg-r',RB('Major: '+maj+' \u00b7 Minor: '+min,x[2],x[3],x[0],x[1]));}
+  onC('sgm','change',sgaCalc);onC('sgn','change',sgaCalc);
+
+  function epdsCalc(){
+    var ids=['eq1','eq2','eq3','eq4','eq5','eq6','eq7','eq8','eq9','eq10'],tot=0,ok=true;
+    ids.forEach(function(id){var v=d.getElementById(id).value;if(v===''||v===undefined){ok=false;}else tot+=+v;});
+    if(!ok){set('ep-r','');return;}
+    var q10=+(d.getElementById('eq10').value||0);
+    var x=q10>0?['#ffebee','#b71c1c','\u26a0 Self-harm ideation flagged (Q10)','Immediate safe assessment \u00b7 Do not leave alone \u00b7 Urgent perinatal mental health referral']:tot>=13?['#ffebee','#b71c1c','Likely depression','Refer to perinatal mental health \u00b7 Consider antidepressant \u00b7 Safety assessment']:tot>=10?['#fff8e1','#f57f17','Possible depression','Repeat in 2 weeks \u00b7 Discuss with GP/midwife \u00b7 Offer psychological support']:['#e8f5e9','#2e7d32','Low risk','Reassure \u00b7 Routine follow-up'];
+    set('ep-r',RB('EPDS = '+tot+'/30',x[2],x[3],x[0],x[1]));}
+  ['eq1','eq2','eq3','eq4','eq5','eq6','eq7','eq8','eq9','eq10'].forEach(function(id){on(id,'change',epdsCalc);});
+}
+
+function render(){
+  var root=document.getElementById('root');
+  if(ST.page==='hub'){
+    root.innerHTML='<div class="hub"><h1>OB-GYN Clinical Calculators</h1><p>13 validated obstetric scoring tools \u2014 tap to open</p>'+
+      C.map(function(c){return'<div class="card" data-id="'+c.id+'" style="border-left-color:'+c.c+'"><div style="width:3px;background:'+c.c+';border-radius:2px;flex-shrink:0;align-self:stretch;margin:-13px 0 -13px -14px;border-radius:8px 0 0 8px;"></div><div><div class="card-text"><div class="title">'+c.t+'</div><div class="sub">'+c.s+'</div></div></div></div>';}).join('')+
+      '<p class="disc">Educational use only \u00b7 Always verify with current RCOG/NICE guidelines \u00b7 Not a substitute for clinical judgement</p></div>';
+    document.querySelectorAll('.card').forEach(function(el){
+      el.addEventListener('click',function(){ST.page=this.dataset.id;ST.moews={};render();});});
+  } else {
+    var calc=C.find(function(c){return c.id===ST.page;});
+    var content=PAGES[ST.page]?PAGES[ST.page]():'Coming soon';
+    root.innerHTML='<div class="pg"><button class="back" id="back-btn">\u2190 All calculators</button>'+
+      '<h1>'+calc.t+'</h1><div class="sub">'+calc.s+'</div>'+
+      '<div class="sec">'+content+'</div>'+
+      '<p class="disc">Educational use only \u00b7 Always apply clinical judgement</p></div>';
+    document.getElementById('back-btn').addEventListener('click',function(){ST.page='hub';render();});
+    attachEvents();
+  }
+}
+render();
+</script>
+</body>
+</html>
